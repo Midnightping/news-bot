@@ -16,7 +16,8 @@ CHANNELS = [
     'citinewsroom',
     'utvghana',
     'pulseghana',
-    'joynewsontv'
+    'joynewsontv',
+    'eiichaley'
 ]
 
 # Initialize Telethon Client
@@ -45,10 +46,11 @@ async def handle_new_message(event):
             logger.info("Duplicate post detected. Skipping.")
             return
 
-        # 3. Download Media if present
+        # 3. Download Media if present (Full Quality)
         media_path = None
         if event.message.media:
-            logger.info("Downloading media...")
+            logger.info("Downloading full-resolution media...")
+            # Telethon's download_media on a message always grabs the highest quality version
             media_path = await event.message.download_media(file=config.MEDIA_TEMP_DIR)
 
         # 4. AI Rewrite

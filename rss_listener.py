@@ -1,6 +1,8 @@
 import feedparser
 import logging
 import config
+import time
+from datetime import datetime, timedelta
 from normalization import normalize_rss
 from database import db
 
@@ -13,6 +15,18 @@ GH_RSS_FEEDS = [
     {"name": "Joy Online", "url": "https://www.myjoyonline.com/feed/"},
 ]
 
+def is_fresh(entry):
+    """Checks if an RSS entry was published within the last 2 hours."""
+    published = entry.get('published_parsed')
+    if not published: return True # If no date, assume fresh
+    
+    # Convert to timestamp
+    pub_time = time.mktime(published)
+    now = time.time()
+    
+    # 2 hours = 7200 seconds
+    return (now - pub_time) < 7200
+
 def poll_rss_feeds():
     logger.info("Polling RSS feeds...")
     new_posts = []
@@ -20,10 +34,15 @@ def poll_rss_feeds():
     for feed in GH_RSS_FEEDS:
         try:
             d = feedparser.parse(feed['url'])
-            for entry in d.entries[:10]: # Check last 10 entries
+            for entry in d.entries[:10]:
+                # 1. Check if it's actually current news
+                if not is_fresh(entry):
+                    logger.debug(f"Skipping old post: {entry.get('title')}")
+                    continue
+                    
                 normalized = normalize_rss(entry, feed['name'])
                 
-                # Check if duplicate
+                # 2. Check if duplicate
                 if not db.check_duplicate(normalized.content_hash):
                     logger.info(f"New RSS post found: {normalized.source_name} - {normalized.content_hash[:8]}")
                     db.add_pending_post(normalized.to_dict())

@@ -43,13 +43,24 @@ def normalize_telegram(message, channel_name):
 
 def normalize_rss(entry, source_name):
     text = entry.get('summary', entry.get('title', ''))
-    # RSS IDs are usually URLs
     source_id = entry.get('id', entry.get('link', ''))
     
+    # Try to find an image in enclosures or media:content
+    media_url = None
+    if 'links' in entry:
+        for link in entry.links:
+            if 'image' in link.get('type', ''):
+                media_url = link.get('href')
+                break
+    
+    if not media_url and 'media_content' in entry:
+        media_url = entry.media_content[0].get('url')
+        
     return NormalizedPost(
         source_type='rss',
         source_name=source_name,
         source_id=source_id,
         raw_text=text,
-        media_type='none' # Basic RSS usually doesn't have easy media download
+        media_urls=[media_url] if media_url else [],
+        media_type='image' if media_url else 'none'
     )

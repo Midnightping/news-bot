@@ -29,13 +29,13 @@ async def rss_task():
                 # 1. AI Rewrite
                 rewritten = rewrite_caption(post.raw_text)
                 
-                # 2. Try to get media if RSS has it (simplified for v1)
-                media_path = None # Feedparser media extraction is complex; v1 is text-only for RSS
+                # 2. Try to get media if RSS has it
+                media_path = None
+                if post.media_urls:
+                    logger.info(f"Downloading RSS media: {post.media_urls[0]}")
+                    media_path = download_media_from_url(post.media_urls[0])
                 
-                # 3. Update DB
-                # Note: poll_rss_feeds already adds to DB with 'pending' status
-                # We should update it with the rewritten text if we want to store it
-                # For v1, we'll just send the notification
+                # 3. Update DB...
                 
                 # 4. Notify User
                 send_suggestion(
@@ -43,6 +43,10 @@ async def rss_task():
                     media_path=media_path,
                     source_info=f"Website: {post.source_name}"
                 )
+                
+                # 5. Cleanup
+                if media_path:
+                    cleanup_media(media_path)
             
             logger.info(f"RSS poll complete. Sleeping for {config.POLLING_INTERVAL // 60} minutes.")
         except Exception as e:
