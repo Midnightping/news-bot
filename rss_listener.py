@@ -9,14 +9,17 @@ from database import db
 logger = logging.getLogger(__name__)
 
 # List of RSS feeds for Ghana news
-GH_RSS_FEEDS = [
+ALL_RSS_FEEDS = [
     {"name": "Citi Newsroom", "url": "https://citinewsroom.com/feed/"},
     {"name": "Pulse Ghana", "url": "https://www.pulse.com.gh/rss"},
     {"name": "Joy Online", "url": "https://www.myjoyonline.com/feed/"},
     {"name": "GhanaWeb", "url": "https://www.ghanaweb.com/GhanaHomePage/rss/news.xml"},
     {"name": "Adom Online", "url": "https://www.adomonline.com/feed/"},
     {"name": "Yen.com.gh", "url": "https://yen.com.gh/rss/all.xml"},
-    {"name": "Graphic Online", "url": "https://www.graphic.com.gh/news.feed?type=rss"}
+    {"name": "Graphic Online", "url": "https://www.graphic.com.gh/news.feed?type=rss"},
+    {"name": "BBC World News", "url": "http://feeds.bbci.co.uk/news/world/rss.xml"},
+    {"name": "Reuters Top News", "url": "https://www.reutersagency.com/feed/?best-topics=top-news&post_type=best"},
+    {"name": "Al Jazeera World", "url": "https://www.aljazeera.com/xml/rss/all.xml"}
 ]
 
 def is_fresh(entry):
@@ -35,7 +38,7 @@ def poll_rss_feeds():
     logger.info("Polling RSS feeds...")
     new_posts = []
     
-    for feed in GH_RSS_FEEDS:
+    for feed in ALL_RSS_FEEDS:
         try:
             d = feedparser.parse(feed['url'])
             for entry in d.entries[:10]:
