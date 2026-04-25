@@ -1,0 +1,9 @@
+telethon
+supabase
+tweepy
+google-generativeai
+feedparser
+python-dotenv
+requests
+fuzzywuzzy
+python-Levenshtein

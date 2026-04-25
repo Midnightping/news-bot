@@ -1,0 +1,8 @@
+.env
+*.session
+*.session-journal
+temp_media/
+__pycache__/
+*.pyc
+debug_models.py
+get_session_string.py

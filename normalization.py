@@ -1,0 +1,55 @@
+import hashlib
+import re
+
+class NormalizedPost:
+    def __init__(self, source_type, source_name, source_id, raw_text, media_urls=None, media_type='none'):
+        self.source_type = source_type # 'telegram', 'rss', 'x'
+        self.source_name = source_name
+        self.source_id = str(source_id)
+        self.raw_text = raw_text
+        self.media_urls = media_urls or []
+        self.media_type = media_type # 'image', 'video', 'none'
+        self.content_hash = self._generate_hash()
+
+    def _generate_hash(self):
+        # Normalize text: lowercase and remove extra whitespace
+        clean_text = re.sub(r'\s+', ' ', self.raw_text).strip().lower()
+        return hashlib.sha256(clean_text.encode()).hexdigest()
+
+    def to_dict(self):
+        return {
+            "source_channel": self.source_name,
+            "source_message_id": self.source_id if self.source_id.isdigit() else None,
+            "original_text": self.raw_text,
+            "content_hash": self.content_hash,
+            "media_type": self.media_type,
+            "status": "pending"
+        }
+
+def normalize_telegram(message, channel_name):
+    # This will be fleshed out more in the telegram_listener
+    text = message.text or message.caption or ""
+    media_type = 'none'
+    if message.photo: media_type = 'image'
+    elif message.video: media_type = 'video'
+    
+    return NormalizedPost(
+        source_type='telegram',
+        source_name=channel_name,
+        source_id=message.id,
+        raw_text=text,
+        media_type=media_type
+    )
+
+def normalize_rss(entry, source_name):
+    text = entry.get('summary', entry.get('title', ''))
+    # RSS IDs are usually URLs
+    source_id = entry.get('id', entry.get('link', ''))
+    
+    return NormalizedPost(
+        source_type='rss',
+        source_name=source_name,
+        source_id=source_id,
+        raw_text=text,
+        media_type='none' # Basic RSS usually doesn't have easy media download
+    )
