@@ -33,14 +33,22 @@ Original News Content:
 Premium Rewrite for X:
 """
 
-def rewrite_caption(original_text):
+def rewrite_caption(raw_text, video_link=None):
+    """Uses Gemini to rewrite the news into a premium social media voice."""
+    
+    video_alert = ""
+    if video_link:
+        video_alert = f"\n(Note: This story contains a video link: {video_link}. Please add a '🎥 VIDEO ATTACHED' or similar high-energy alert at the start of the post.)"
+
+    prompt_base = f"{SYSTEM_PROMPT}\n\nREWRITE THIS NEWS:\n{{original_text}}{video_alert}"
+    
     if not model:
         logger.error("AI model not initialized.")
-        return original_text
+        return raw_text
     
     try:
         # Check if there are custom prompt variants in the prompts folder
-        prompt = SYSTEM_PROMPT
+        prompt = prompt_base
         if os.path.exists(config.PROMPTS_DIR):
             variants = [f for f in os.listdir(config.PROMPTS_DIR) if f.endswith('.txt')]
             if variants:

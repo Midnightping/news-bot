@@ -2,13 +2,14 @@ import hashlib
 import re
 
 class NormalizedPost:
-    def __init__(self, source_type, source_name, source_id, raw_text, media_urls=None, media_type='none'):
+    def __init__(self, source_type, source_name, source_id, raw_text, media_urls=None, media_type='none', video_link=None):
         self.source_type = source_type # 'telegram', 'rss', 'x'
         self.source_name = source_name
         self.source_id = str(source_id)
         self.raw_text = raw_text
         self.media_urls = media_urls or []
         self.media_type = media_type # 'image', 'video', 'none'
+        self.video_link = video_link
         self.content_hash = self._generate_hash()
 
     def _generate_hash(self):
@@ -23,6 +24,7 @@ class NormalizedPost:
             "original_text": self.raw_text,
             "content_hash": self.content_hash,
             "media_type": self.media_type,
+            "video_link": self.video_link,
             "status": "pending"
         }
 
@@ -33,12 +35,21 @@ def normalize_telegram(message, channel_name):
     if message.photo: media_type = 'image'
     elif message.video: media_type = 'video'
     
+    video_link = None
+    if any(site in text for site in ["tiktok.com", "instagram.com", "youtube.com", "youtu.be"]):
+        links = re.findall(r'(https?://\S+)', text)
+        for l in links:
+            if any(x in l for x in ["tiktok", "instagram", "youtube", "youtu.be"]):
+                video_link = l
+                break
+    
     return NormalizedPost(
         source_type='telegram',
         source_name=channel_name,
         source_id=message.id,
         raw_text=text,
-        media_type=media_type
+        media_type=media_type,
+        video_link=video_link
     )
 
 def normalize_rss(entry, source_name):
@@ -55,6 +66,15 @@ def normalize_rss(entry, source_name):
     
     if not media_url and 'media_content' in entry:
         media_url = entry.media_content[0].get('url')
+
+    video_link = None
+    all_text = f"{entry.get('title', '')} {text}"
+    if any(site in all_text for site in ["tiktok.com", "instagram.com", "youtube.com", "youtu.be"]):
+        links = re.findall(r'(https?://\S+)', all_text)
+        for l in links:
+            if any(x in l for x in ["tiktok", "instagram", "youtube", "youtu.be"]):
+                video_link = l
+                break
         
     return NormalizedPost(
         source_type='rss',
@@ -62,5 +82,6 @@ def normalize_rss(entry, source_name):
         source_id=source_id,
         raw_text=text,
         media_urls=[media_url] if media_url else [],
-        media_type='image' if media_url else 'none'
+        media_type='image' if media_url else 'none',
+        video_link=video_link
     )

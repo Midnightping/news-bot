@@ -60,7 +60,7 @@ async def handle_new_message(event):
 
         # 4. AI Rewrite
         logger.info("Rewriting caption with AI...")
-        rewritten = rewrite_caption(normalized.raw_text)
+        rewritten = rewrite_caption(normalized.raw_text, normalized.video_link)
         
         # 5. Save to Database
         post_data = normalized.to_dict()
