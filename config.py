@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Telegram
-TG_API_ID = os.getenv("TG_API_ID")
+TG_API_ID = int(os.getenv("TG_API_ID", 0))
 TG_API_HASH = os.getenv("TG_API_HASH")
 TG_PHONE = os.getenv("TG_PHONE")
 TG_SESSION_STRING = os.getenv("TG_SESSION_STRING")
