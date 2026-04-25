@@ -23,12 +23,17 @@ CHANNELS = [
 # Initialize Telethon Client
 from telethon.sessions import StringSession
 
-if config.TG_SESSION_STRING:
-    client = TelegramClient(StringSession(config.TG_SESSION_STRING), config.TG_API_ID, config.TG_API_HASH)
-    logger.info("Using StringSession for authentication.")
-else:
-    client = TelegramClient('ghana_news_bot_session', config.TG_API_ID, config.TG_API_HASH)
-    logger.info("Using local session file for authentication.")
+client = None
+try:
+    if config.TG_SESSION_STRING:
+        client = TelegramClient(StringSession(config.TG_SESSION_STRING), config.TG_API_ID, config.TG_API_HASH)
+        logger.info("Using StringSession for authentication.")
+    else:
+        client = TelegramClient('ghana_news_bot_session', config.TG_API_ID, config.TG_API_HASH)
+        logger.info("Using local session file for authentication.")
+except Exception as e:
+    logger.error(f"FATAL: Failed to initialize Telegram client: {e}")
+    logger.error("Check your TG_SESSION_STRING and API_ID (must be a number).")
 
 async def handle_new_message(event):
     """Callback for new messages in monitored channels."""
@@ -78,8 +83,12 @@ async def handle_new_message(event):
         logger.error(f"Error handling Telegram message: {e}")
 
 async def start_listening():
-    """Starts the Telethon listener."""
-    logger.info(f"Starting Telegram listener for channels: {CHANNELS}")
+    """Start the Telegram client and listen for new messages."""
+    if client is None:
+        logger.error("Telegram client is not initialized. Skipping listener.")
+        return
+
+    logger.info(f"Connecting to Telegram for channels: {CHANNELS}")
     
     @client.on(events.NewMessage(chats=CHANNELS))
     async def handler(event):
