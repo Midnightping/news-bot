@@ -13,6 +13,10 @@ GH_RSS_FEEDS = [
     {"name": "Citi Newsroom", "url": "https://citinewsroom.com/feed/"},
     {"name": "Pulse Ghana", "url": "https://www.pulse.com.gh/rss"},
     {"name": "Joy Online", "url": "https://www.myjoyonline.com/feed/"},
+    {"name": "GhanaWeb", "url": "https://www.ghanaweb.com/GhanaHomePage/rss/news.xml"},
+    {"name": "Adom Online", "url": "https://www.adomonline.com/feed/"},
+    {"name": "Yen.com.gh", "url": "https://yen.com.gh/rss/all.xml"},
+    {"name": "Graphic Online", "url": "https://www.graphic.com.gh/news.feed?type=rss"}
 ]
 
 def is_fresh(entry):
