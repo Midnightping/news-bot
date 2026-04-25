@@ -1,0 +1,28 @@
+import telebot
+import config
+import logging
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
+
+# Initialize the bot for listening
+bot = telebot.TeleBot(config.NOTIFIER_BOT_TOKEN)
+
+@bot.message_handler(commands=['start', 'status', 'ping'])
+def send_status(message):
+    # Only respond to YOU
+    if str(message.chat.id) == str(config.USER_CHAT_ID):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status_msg = (
+            "✅ **News Bot Status: ONLINE**\n"
+            f"🕒 Server Time: `{now}`\n"
+            "📡 Monitoring: 5 Telegram Channels, 3 RSS Feeds\n"
+            "🚀 Deploy: Railway Cloud"
+        )
+        bot.reply_to(message, status_msg, parse_mode='Markdown')
+    else:
+        logger.warning(f"Unauthorized access attempt from Chat ID: {message.chat.id}")
+
+def start_command_listener():
+    logger.info("Bot command listener started (Waiting for /status)...")
+    bot.infinity_polling()

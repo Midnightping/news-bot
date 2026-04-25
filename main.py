@@ -2,11 +2,13 @@ import asyncio
 import logging
 import config
 from telegram_listener import start_listening, client
+from command_handler import start_command_listener
 from rss_listener import poll_rss_feeds
 from ai_rewriter import rewrite_caption
-from notifier import send_suggestion
+from notifier import send_suggestion, bot
 from database import db
 from media_handler import download_media_from_url, cleanup_media
+from datetime import datetime
 
 # Configure Logging
 logging.basicConfig(
@@ -54,13 +56,34 @@ async def rss_task():
             
         await asyncio.sleep(config.POLLING_INTERVAL)
 
+async def heartbeat_task():
+    """Sends a 'Still Alive' message to the user once a day at 8 AM."""
+    logger.info("Heartbeat task started.")
+    while True:
+        now = datetime.now()
+        # Check if it's 6:00 AM GMT
+        if now.hour == 6 and now.minute == 0:
+            status_msg = "🫡 **Daily Heartbeat**: News Bot is active and monitoring Ghana news."
+            try:
+                bot.send_message(config.USER_CHAT_ID, status_msg, parse_mode='Markdown')
+                logger.info("Daily heartbeat sent.")
+            except Exception as e:
+                logger.error(f"Failed to send heartbeat: {e}")
+            await asyncio.sleep(60) # Wait a minute so we don't send it twice
+        await asyncio.sleep(30) # Check every 30 seconds
+
 async def main():
     logger.info("🚀 Starting Ghana News Bot (Semi-Automated Mode)...")
     
-    # Run Telegram listener and RSS poller concurrently
+    # Run the Command Listener in a separate thread to not block asyncio
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, start_command_listener)
+    
+    # Run Telegram listener, RSS poller, and heartbeat task concurrently
     await asyncio.gather(
         start_listening(),
-        rss_task()
+        rss_task(),
+        heartbeat_task()
     )
 
 if __name__ == "__main__":
