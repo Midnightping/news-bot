@@ -1,3 +1,4 @@
+import config
 import logging
 from datetime import datetime
 from bot_instance import bot, instance_id

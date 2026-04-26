@@ -37,12 +37,19 @@ except Exception as e:
     logger.error(f"FATAL: Failed to initialize Telegram client: {e}")
     logger.error("Check your TG_SESSION_STRING and API_ID (must be a number).")
 
-async def handle_new_message(event):
+async def handle_new_message(event, is_history=False):
     """Callback for new messages in monitored channels."""
     try:
-        channel_entity = await event.get_chat()
-        channel_username = getattr(channel_entity, 'username', 'Unknown')
-        
+        if is_history:
+            # When scraping history, 'event' is actually a Message object
+            msg = event
+            channel_username = msg.chat.username if hasattr(msg.chat, 'username') else "Unknown"
+        else:
+            # When live, 'event' is a NewMessage.Event
+            channel_entity = await event.get_chat()
+            channel_username = getattr(channel_entity, 'username', 'Unknown')
+            msg = event.message
+            
         logger.info(f"New message from {channel_username}")
         
         # 1. Get the message object correctly
@@ -106,7 +113,7 @@ async def scrape_history(limit=20):
                     content_hash = hashlib.md5(f"telegram_{channel}_{message.id}".encode()).hexdigest()
                     if not db.check_duplicate(content_hash):
                         logger.info(f"📥 Catching up on missed post from {channel}")
-                        await handle_new_message(message)
+                        await handle_new_message(message, is_history=True)
         except Exception as e:
             logger.error(f"Error scraping history for {channel}: {e}")
 
