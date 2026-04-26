@@ -2,6 +2,8 @@ from telethon import TelegramClient, events
 import config
 import logging
 import os
+import hashlib
+import time
 from normalization import normalize_telegram
 from database import db
 from ai_rewriter import rewrite_caption
@@ -82,6 +84,24 @@ async def handle_new_message(event):
     except Exception as e:
         logger.error(f"Error handling Telegram message: {e}")
 
+async def scrape_history(limit=20):
+    """Scrapes the most recent messages from monitored channels to catch up."""
+    logger.info(f"🕰️ Scraping last {limit} messages from channels to catch up...")
+    for channel in CHANNELS:
+        try:
+            entity = await client.get_entity(channel)
+            async for message in client.iter_messages(entity, limit=limit):
+                # Only process if it's from the last 24 hours
+                if message.date.timestamp() > (time.time() - 86400):
+                    # Check if already processed
+                    text = message.text or ""
+                    content_hash = hashlib.md5(f"telegram_{channel}_{message.id}".encode()).hexdigest()
+                    if not db.check_duplicate(content_hash):
+                        logger.info(f"📥 Catching up on missed post from {channel}")
+                        await handle_new_message(message)
+        except Exception as e:
+            logger.error(f"Error scraping history for {channel}: {e}")
+
 async def start_listening():
     """Start the Telegram client and listen for new messages."""
     if client is None:
@@ -100,6 +120,9 @@ async def start_listening():
                 logger.info(f"✅ Monitoring: {channel} (ID: {entity.id})")
             except Exception as e:
                 logger.error(f"❌ Cannot access channel '{channel}': {e}")
+
+        # --- NEW: Catch up on today's news ---
+        await scrape_history(limit=50)
 
         logger.info("🚀 Telegram Listener is ACTIVE and waiting for news...")
         
