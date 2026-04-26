@@ -85,18 +85,32 @@ async def handle_new_message(event):
 async def start_listening():
     """Start the Telegram client and listen for new messages."""
     if client is None:
-        logger.error("Telegram client is not initialized. Skipping listener.")
+        logger.error("❌ Telegram client is NOT initialized. Check your SESSION_STRING.")
         return
 
-    logger.info(f"Connecting to Telegram for channels: {CHANNELS}")
-    
-    @client.on(events.NewMessage(chats=CHANNELS))
-    async def handler(event):
-        await handle_new_message(event)
+    try:
+        logger.info("📡 Connecting to Telegram...")
+        await client.start()
+        
+        # Verify access to channels
+        logger.info("🔍 Verifying channel access...")
+        for channel in CHANNELS:
+            try:
+                entity = await client.get_entity(channel)
+                logger.info(f"✅ Monitoring: {channel} (ID: {entity.id})")
+            except Exception as e:
+                logger.error(f"❌ Cannot access channel '{channel}': {e}")
 
-    await client.start(phone=config.TG_PHONE)
-    logger.info("Telegram listener is online!")
-    await client.run_until_disconnected()
+        logger.info("🚀 Telegram Listener is ACTIVE and waiting for news...")
+        
+        @client.on(events.NewMessage(chats=CHANNELS))
+        async def handler(event):
+            await handle_new_message(event)
+            
+        await client.run_until_disconnected()
+        
+    except Exception as e:
+        logger.error(f"❌ Telegram Listener crashed: {e}")
 
 if __name__ == "__main__":
     import asyncio

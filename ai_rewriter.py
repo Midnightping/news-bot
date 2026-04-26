@@ -33,7 +33,7 @@ Original News Content:
 Premium Rewrite for X:
 """
 
-def rewrite_caption(raw_text, video_link=None):
+def rewrite_caption(original_text, video_link=None):
     """Uses Gemini to rewrite the news into a premium social media voice."""
     
     video_alert = ""
@@ -44,7 +44,7 @@ def rewrite_caption(raw_text, video_link=None):
     
     if not model:
         logger.error("AI model not initialized.")
-        return raw_text
+        return original_text
     
     try:
         # Check if there are custom prompt variants in the prompts folder

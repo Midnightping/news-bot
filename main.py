@@ -21,6 +21,7 @@ async def rss_task():
     """Background task to poll RSS feeds periodically."""
     while True:
         try:
+            logger.info("💓 Heartbeat: Checking RSS feeds for new stories...")
             logger.info("Starting scheduled RSS poll...")
             new_rss_posts = poll_rss_feeds()
             
