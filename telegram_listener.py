@@ -1,4 +1,5 @@
 from telethon import TelegramClient, events
+import asyncio
 import config
 import logging
 import os
