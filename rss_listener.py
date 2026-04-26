@@ -43,9 +43,9 @@ def poll_rss_feeds():
             d = feedparser.parse(feed['url'])
             for entry in d.entries[:10]:
                 # 1. Check if it's actually current news
-            if not is_fresh(entry):
-                logger.info(f"⏭️ Skipping old post ({entry.get('title')[:30]}...)")
-                continue
+                if not is_fresh(entry):
+                    logger.info(f"⏭️ Skipping old post ({entry.get('title')[:30]}...)")
+                    continue
                     
                 normalized = normalize_rss(entry, feed['name'])
                 

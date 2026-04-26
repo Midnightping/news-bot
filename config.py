@@ -8,7 +8,7 @@ load_dotenv()
 TG_API_ID = int(os.getenv("TG_API_ID", 0))
 TG_API_HASH = os.getenv("TG_API_HASH")
 TG_PHONE = os.getenv("TG_PHONE")
-TG_SESSION_STRING = os.getenv("TG_SESSION_STRING")
+TG_SESSION_STRING = os.getenv("TG_SESSION_STRING", "").strip().strip("'").strip('"')
 
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
