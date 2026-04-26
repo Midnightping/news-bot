@@ -1,4 +1,5 @@
 import asyncio
+print("!!! DEBUG: Bot process started successfully !!!")
 import logging
 import config
 from telegram_listener import start_listening, client

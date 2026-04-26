@@ -116,7 +116,16 @@ async def start_listening():
 
     try:
         logger.info("📡 Connecting to Telegram...")
-        await client.start()
+        try:
+            # 30 second timeout to prevent silent hangs
+            await asyncio.wait_for(client.start(), timeout=30)
+            logger.info("✅ Connected to Telegram.")
+        except asyncio.TimeoutError:
+            logger.error("❌ Telegram connection TIMED OUT after 30s! Check SESSION_STRING.")
+            return
+        except Exception as e:
+            logger.error(f"❌ Telegram connection FAILED: {e}")
+            return
         
         # Verify access to channels
         logger.info("🔍 Verifying channel access...")
