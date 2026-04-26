@@ -31,10 +31,14 @@ async def rss_task():
             logger.info("💓 Heartbeat: Checking RSS feeds for new stories...")
             logger.info("Starting scheduled RSS poll...")
             new_rss_posts = poll_rss_feeds()
+            total_new = len(new_rss_posts)
             
-            for post in new_rss_posts:
+            if total_new > 0:
+                logger.info(f"✨ Found {total_new} new stories to process.")
+                
+            for i, post in enumerate(new_rss_posts, 1):
                 # Process each new RSS post
-                logger.info(f"Processing RSS post: {post.source_name}")
+                logger.info(f"📝 Processing story {i}/{total_new}: {post.source_name}")
                 
                 # 1. AI Rewrite
                 rewritten = rewrite_caption(post.raw_text, post.video_link)
@@ -42,12 +46,11 @@ async def rss_task():
                 # 2. Try to get media if RSS has it
                 media_path = None
                 if post.media_urls:
-                    logger.info(f"Downloading RSS media: {post.media_urls[0]}")
+                    logger.info(f"📥 Downloading media for story {i}...")
                     media_path = download_media_from_url(post.media_urls[0])
                 
-                # 3. Update DB...
-                
                 # 4. Notify User
+                logger.info(f"📤 Sending suggestion for story {i} to Telegram...")
                 send_suggestion(
                     caption=rewritten,
                     media_path=media_path,
@@ -58,7 +61,12 @@ async def rss_task():
                 if media_path:
                     cleanup_media(media_path)
             
-            logger.info(f"RSS poll complete. Sleeping for {config.POLLING_INTERVAL // 60} minutes.")
+            if total_new > 0:
+                logger.info(f"✅ Finished processing {total_new} stories.")
+            else:
+                logger.info("😴 No new stories found this time.")
+                
+            logger.info(f"💤 Sleeping for {config.POLLING_INTERVAL // 60} minutes.")
         except Exception as e:
             logger.error(f"Error in RSS task: {e}")
             
