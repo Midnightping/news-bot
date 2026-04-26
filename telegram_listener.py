@@ -9,6 +9,7 @@ from normalization import normalize_telegram
 from database import db
 from ai_rewriter import rewrite_caption
 from notifier import send_suggestion
+from bot_instance import instance_id
 from media_handler import cleanup_media
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ async def start_listening():
         # --- NEW: Catch up on today's news ---
         await scrape_history(limit=50)
 
-        logger.info("🚀 Telegram Listener is ACTIVE and waiting for news...")
+        logger.info(f"🚀 Telegram Listener ACTIVE for Instance: {instance_id}")
         
         @client.on(events.NewMessage(chats=CHANNELS))
         async def handler(event):

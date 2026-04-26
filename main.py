@@ -1,13 +1,12 @@
 import asyncio
-print("!!! DEBUG: Bot process started successfully !!!")
 import logging
 import config
+from bot_instance import bot, instance_id
 from telegram_listener import start_listening, client
 from command_handler import start_command_listener
 from rss_listener import poll_rss_feeds
 from ai_rewriter import rewrite_caption
 from notifier import send_suggestion
-from bot_instance import bot
 from database import db
 from media_handler import download_media_from_url, cleanup_media
 from datetime import datetime
@@ -91,7 +90,8 @@ async def heartbeat_task():
         await asyncio.sleep(30) # Check every 30 seconds
 
 async def main():
-    logger.info("🚀 Starting Ghana News Bot (Semi-Automated Mode)...")
+    print(f"!!! DEBUG: Bot Instance {instance_id} process started !!!")
+    logger.info(f"🚀 Starting Ghana News Bot (Instance: {instance_id})")
     
     # Run the Command Listener in a separate thread to not block asyncio
     loop = asyncio.get_event_loop()
