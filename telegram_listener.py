@@ -47,8 +47,6 @@ async def handle_new_message(event, is_history=False):
             
         logger.info(f"New message from {channel_username}")
         
-        # 1. Get the message object correctly
-        msg = event.message if hasattr(event, 'message') else event
         logger.debug(f"Processing message of type: {type(msg)}")
         
         if isinstance(msg, str):
