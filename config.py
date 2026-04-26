@@ -7,7 +7,6 @@ load_dotenv()
 # Monitoring channels
 MONITORING_CHANNELS = [
     "ghonetv",
-    "Citi973",
     "joynewsontv",
 ]
 
