@@ -21,11 +21,27 @@ def send_status(message):
         logger.warning(f"Unauthorized access attempt from Chat ID: {message.chat.id}")
 
 def start_command_listener():
-    logger.info(f"Bot command listener starting for Instance: {instance_id}...")
     import time
-    # 10 second delay to ensure old Railway containers are dead
+    import os
+    import telebot
+    
+    logger.info(f"Bot command listener starting for Instance: {instance_id}...")
+    # 10 second delay to give Railway time to start the new process
     time.sleep(10)
     
     logger.info(f"Bot command listener ACTIVE (Instance: {instance_id})")
-    # skip_pending=True ignores old messages sent while bot was down
-    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+    
+    try:
+        # We use polling instead of infinity_polling so we can catch the exception
+        bot.polling(non_stop=True, skip_pending=True, timeout=60)
+    except telebot.apihelper.ApiTelegramException as e:
+        if e.error_code == 409:
+            logger.warning(f"⚠️ Conflict (409) detected for Instance {instance_id}. A newer instance is likely running. Shutting down old instance.")
+            # os._exit(0) ensures the entire process dies immediately
+            os._exit(0)
+        else:
+            logger.error(f"Telegram API Error: {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Command listener crashed: {e}")
+        raise
