@@ -15,12 +15,7 @@ from media_handler import cleanup_media
 logger = logging.getLogger(__name__)
 
 # List of Ghana news channels to monitor
-CHANNELS = [
-    'ghonetv',
-    'Citinewsroom',
-    'joynewsontv',
-    'eiichaley'
-]
+CHANNELS = ["ghonetv", "Citi973", "joynewsontv", "eiichaley"]
 
 # Initialize Telethon Client
 from telethon.sessions import StringSession

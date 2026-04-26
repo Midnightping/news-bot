@@ -4,6 +4,13 @@ from dotenv import load_dotenv
 # Load environment variables from .env file if it exists
 load_dotenv()
 
+# Monitoring channels
+MONITORING_CHANNELS = [
+    "ghonetv",
+    "Citi973",
+    "joynewsontv",
+]
+
 # Deployment Info
 DEPLOY_VERSION = "1.0.8-LibFix-17:32"
 
