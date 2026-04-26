@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 # List of Ghana news channels to monitor
 CHANNELS = [
     'ghonetv',
-    'CitiTVGhana',
-    'utvghanaofficial',
-    'PulseGhana',
+    'Citinewsroom',
     'joynewsontv',
     'eiichaley'
 ]
@@ -45,8 +43,11 @@ async def handle_new_message(event):
         
         logger.info(f"New message from {channel_username}")
         
-        # 1. Normalize
-        normalized = normalize_telegram(event.message, channel_username)
+        # 1. Get the message object correctly
+        msg = event.message if hasattr(event, 'message') else event
+        
+        # 2. Normalize
+        normalized = normalize_telegram(msg, channel_username)
         
         # 2. Check Duplicate
         if db.check_duplicate(normalized.content_hash):
