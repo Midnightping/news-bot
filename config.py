@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Deployment Info
-DEPLOY_VERSION = "1.0.5-ForceRefresh-16:50"
+DEPLOY_VERSION = "1.0.6-DeepFix-17:11"
 
 # Telegram
 TG_API_ID = int(os.getenv("TG_API_ID", 0))
