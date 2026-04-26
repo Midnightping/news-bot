@@ -25,7 +25,18 @@ class Database:
             result = self.client.table("posts").insert(post_data).execute()
             return result.data
         except Exception as e:
-            logger.error(f"Error adding post: {e}")
+            # If video_link column is missing, retry without it
+            if "video_link" in str(e) and "video_link" in post_data:
+                logger.warning("⚠️ 'video_link' column missing in Supabase. Saving without it.")
+                temp_data = post_data.copy()
+                temp_data.pop("video_link")
+                try:
+                    result = self.client.table("posts").insert(temp_data).execute()
+                    return result.data
+                except Exception as retry_e:
+                    logger.error(f"Retry failed: {retry_e}")
+            else:
+                logger.error(f"Error adding post: {e}")
             return None
 
     def check_duplicate(self, content_hash):

@@ -37,7 +37,7 @@ async def rss_task():
                 logger.info(f"Processing RSS post: {post.source_name}")
                 
                 # 1. AI Rewrite
-                rewritten = rewrite_caption(post.raw_text, post.get('video_link'))
+                rewritten = rewrite_caption(post.raw_text, post.video_link)
                 
                 # 2. Try to get media if RSS has it
                 media_path = None

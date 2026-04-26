@@ -24,5 +24,12 @@ def send_status(message):
         logger.warning(f"Unauthorized access attempt from Chat ID: {message.chat.id}")
 
 def start_command_listener():
-    logger.info("Bot command listener started (Waiting for /status)...")
-    bot.infinity_polling()
+    logger.info("Bot command listener starting in 5 seconds...")
+    import time
+    # Small delay to let old Railway containers shut down
+    time.sleep(5)
+    
+    logger.info("Bot command listener ACTIVE (Waiting for /status)...")
+    # skip_pending=True ignores old messages sent while bot was down
+    # timeout=20 is standard, logger_level to avoid polling noise
+    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
