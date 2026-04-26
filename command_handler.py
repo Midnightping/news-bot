@@ -1,12 +1,9 @@
-import telebot
 import config
 import logging
 from datetime import datetime
+from bot_instance import bot
 
 logger = logging.getLogger(__name__)
-
-# Initialize the bot for listening
-bot = telebot.TeleBot(config.NOTIFIER_BOT_TOKEN)
 
 @bot.message_handler(commands=['start', 'status', 'ping'])
 def send_status(message):

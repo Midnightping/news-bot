@@ -1,12 +1,9 @@
-import telebot
 import config
 import logging
 import os
+from bot_instance import bot
 
 logger = logging.getLogger(__name__)
-
-# Initialize Bot
-bot = telebot.TeleBot(config.NOTIFIER_BOT_TOKEN)
 
 def send_suggestion(caption, media_path=None, source_info="Unknown"):
     """Sends a news suggestion to the user's private Telegram chat."""

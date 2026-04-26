@@ -5,7 +5,8 @@ from telegram_listener import start_listening, client
 from command_handler import start_command_listener
 from rss_listener import poll_rss_feeds
 from ai_rewriter import rewrite_caption
-from notifier import send_suggestion, bot
+from notifier import send_suggestion
+from bot_instance import bot
 from database import db
 from media_handler import download_media_from_url, cleanup_media
 from datetime import datetime
