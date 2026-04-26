@@ -17,6 +17,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("MainOrchestrator")
 
+# Silence noisy libraries
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('telethon').setLevel(logging.WARNING)
+logging.getLogger('hpack').setLevel(logging.WARNING)
+logging.getLogger('google').setLevel(logging.WARNING)
+
 async def rss_task():
     """Background task to poll RSS feeds periodically."""
     while True:

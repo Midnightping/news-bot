@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 # List of Ghana news channels to monitor
 CHANNELS = [
     'ghonetv',
-    'citinewsroom',
-    'utvghana',
-    'pulseghana',
+    'CitiTVGhana',
+    'utvghanaofficial',
+    'PulseGhana',
     'joynewsontv',
     'eiichaley'
 ]
