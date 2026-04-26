@@ -45,7 +45,12 @@ async def handle_new_message(event):
         
         # 1. Get the message object correctly
         msg = event.message if hasattr(event, 'message') else event
+        logger.debug(f"Processing message of type: {type(msg)}")
         
+        if isinstance(msg, str):
+            logger.error(f"⚠️ Received a string instead of a Message object: {msg[:100]}")
+            return
+
         # 2. Normalize
         normalized = normalize_telegram(msg, channel_username)
         

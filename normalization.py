@@ -29,11 +29,17 @@ class NormalizedPost:
         }
 
 def normalize_telegram(message, channel_name):
-    # This will be fleshed out more in the telegram_listener
-    text = message.text or message.caption or ""
-    media_type = 'none'
-    if message.photo: media_type = 'image'
-    elif message.video: media_type = 'video'
+    # Defensive check: if message is a string, handle it
+    if isinstance(message, str):
+        text = message
+        media_type = 'none'
+        msg_id = "unknown"
+    else:
+        text = getattr(message, 'text', getattr(message, 'message', "")) or message.caption or ""
+        media_type = 'none'
+        if getattr(message, 'photo', None): media_type = 'image'
+        elif getattr(message, 'video', None): media_type = 'video'
+        msg_id = getattr(message, 'id', 'unknown')
     
     video_link = None
     if any(site in text for site in ["tiktok.com", "instagram.com", "youtube.com", "youtu.be"]):
@@ -46,7 +52,7 @@ def normalize_telegram(message, channel_name):
     return NormalizedPost(
         source_type='telegram',
         source_name=channel_name,
-        source_id=message.id,
+        source_id=msg_id,
         raw_text=text,
         media_type=media_type,
         video_link=video_link
