@@ -35,7 +35,7 @@ def normalize_telegram(message, channel_name):
         media_type = 'none'
         msg_id = "unknown"
     else:
-        text = getattr(message, 'text', getattr(message, 'message', "")) or message.caption or ""
+        text = getattr(message, 'text', None) or getattr(message, 'message', None) or getattr(message, 'caption', None) or ""
         media_type = 'none'
         if getattr(message, 'photo', None): media_type = 'image'
         elif getattr(message, 'video', None): media_type = 'video'
