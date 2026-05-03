@@ -272,16 +272,16 @@ async def post_to_x(text: str, media_path: str | None = None, post_id: str | Non
 
                 await browser.close()
 
-    except Exception as e:
-        logger.error(f"❌ Playwright error while posting to X: {e}")
-        success = False
-    finally:
-        # Clean up temp session file
-        try:
-            if session_file and os.path.exists(session_file):
-                os.remove(session_file)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"❌ Playwright error while posting to X: {e}")
+            success = False
+        finally:
+            # Clean up temp session file
+            try:
+                if session_file and os.path.exists(session_file):
+                    os.remove(session_file)
+            except Exception:
+                pass
 
     # --- Post-action: update DB and rate limit state ---
     if success:
