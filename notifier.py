@@ -12,27 +12,17 @@ def send_suggestion(caption, media_path=None, source_info="Unknown"):
     try:
         if media_path and os.path.exists(media_path):
             file_ext = media_path.lower().split('.')[-1]
-            with open(media_path, 'rb') as media_file:
-                if file_ext in ['mp4', 'mov', 'avi']:
-                    bot.send_video(
-                        config.USER_CHAT_ID, 
-                        media_file, 
-                        caption=full_caption, 
-                        parse_mode='Markdown'
-                    )
-                else:
-                    bot.send_photo(
-                        config.USER_CHAT_ID, 
-                        media_file, 
-                        caption=full_caption, 
-                        parse_mode='Markdown'
-                    )
+            try:
+                with open(media_path, 'rb') as media_file:
+                    if file_ext in ['mp4', 'mov', 'avi']:
+                        bot.send_video(config.USER_CHAT_ID, media_file, caption=full_caption, parse_mode='Markdown')
+                    else:
+                        bot.send_photo(config.USER_CHAT_ID, media_file, caption=full_caption, parse_mode='Markdown')
+            except Exception as media_err:
+                logger.warning(f"⚠️ Media send failed ({media_err}). Falling back to text-only.")
+                bot.send_message(config.USER_CHAT_ID, full_caption, parse_mode='Markdown')
         else:
-            bot.send_message(
-                config.USER_CHAT_ID, 
-                full_caption, 
-                parse_mode='Markdown'
-            )
+            bot.send_message(config.USER_CHAT_ID, full_caption, parse_mode='Markdown')
         
         logger.info("✅ News suggestion sent to user.")
         return True
