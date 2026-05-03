@@ -9,3 +9,4 @@ pyTelegramBotAPI
 requests
 fuzzywuzzy
 python-Levenshtein
+playwright>=1.44.0

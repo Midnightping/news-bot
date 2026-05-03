@@ -68,8 +68,8 @@ def rewrite_caption(original_text, video_link=None):
         return rewritten
     except Exception as e:
         err_msg = str(e)
-        if "429" in err_msg or "quota" in err_msg.lower():
-            logger.warning("Gemini API Quota Exceeded. Falling back to original text.")
-            return f"{original_text}\n\n⚠️ *Note: AI rewrite unavailable (quota reached)*"
+        if "429" in err_msg or "quota" in err_msg.lower() or "rate" in err_msg.lower():
+            logger.warning("⚠️ Gemini API Quota/Rate Limit hit. Returning None to block X posting.")
+            return None  # Callers MUST check for None — never post this to X
         logger.error(f"Error rewriting caption: {e}")
-        return original_text # Fallback to original
+        return original_text  # Fallback to original text for non-quota errors

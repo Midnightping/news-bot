@@ -30,12 +30,9 @@ USER_CHAT_ID = os.getenv("USER_CHAT_ID")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-# X / Twitter
-X_API_KEY = os.getenv("X_API_KEY")
-X_API_SECRET = os.getenv("X_API_SECRET")
-X_ACCESS_TOKEN = os.getenv("X_ACCESS_TOKEN")
-X_ACCESS_SECRET = os.getenv("X_ACCESS_SECRET")
-X_BEARER_TOKEN = os.getenv("X_BEARER_TOKEN")
+# X / Twitter (Playwright session — no API key needed)
+X_SESSION_COOKIES = os.getenv("X_SESSION_COOKIES", "")  # base64-encoded JSON from capture_x_session.py
+X_USERNAME = os.getenv("X_USERNAME", "")  # your X handle (for logging)
 
 # Bot Settings
 POLLING_INTERVAL = int(os.getenv("POLLING_INTERVAL_MINUTES", 15)) * 60

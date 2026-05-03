@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 debug_models.py
 get_session_string.py
+x_session.json
+x_chrome_profile/
+x_cookies_raw.json

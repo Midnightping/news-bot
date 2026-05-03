@@ -41,8 +41,11 @@ async def rss_task():
                 # Process each new RSS post
                 logger.info(f"📝 Processing story {i}/{total_new}: {post.source_name}")
                 
-                # 1. AI Rewrite
+                # 1. AI Rewrite (returns None on Gemini quota errors)
                 rewritten = rewrite_caption(post.raw_text, post.video_link)
+                if rewritten is None:
+                    logger.warning(f"⚠️ Gemini quota hit for RSS story {i} — using original text for Telegram suggestion.")
+                    rewritten = post.raw_text  # Safe fallback for Telegram only (not X)
                 
                 # 2. Try to get media if RSS has it
                 media_path = None
