@@ -65,6 +65,9 @@ async def rss_task():
                 # 5. Cleanup
                 if media_path:
                     cleanup_media(media_path)
+                
+                # 6. Spacing out RSS stories to preserve Gemini quota for X posts
+                await asyncio.sleep(10)
             
             if total_new > 0:
                 logger.info(f"✅ Finished processing {total_new} stories.")
