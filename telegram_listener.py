@@ -154,17 +154,8 @@ async def handle_newsfather_message(event):
         rewritten = rewrite_caption(normalized.raw_text, normalized.video_link)
 
         if rewritten is None:
-            logger.warning(
-                "⚠️ Gemini quota hit — skipping X post for this @newsfather story. "
-                "Saving to DB as 'skipped_quota'."
-            )
-            post_data = normalized.to_dict()
-            post_data['rewritten_text'] = None
-            post_data['status'] = 'skipped_quota'
-            db.add_pending_post(post_data)
-            if media_path:
-                cleanup_media(media_path)
-            return
+            logger.warning("⚠️ Gemini quota hit — falling back to original text for X post.")
+            rewritten = normalized.raw_text
 
         # 5. Save to DB
         post_data = normalized.to_dict()
