@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 CHANNELS = ["ghonetv", "joynewsontv", "eiichaley"]
 
 # Channels that get auto-posted directly to X (Twitter) via Playwright
-X_POST_CHANNELS = ["newsfather", "@newsfather"]
+X_POST_CHANNELS = ["ghnewsfatherbot", "@ghnewsfatherbot"]
 
 # Initialize Telethon Client
 from telethon.sessions import StringSession
