@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 # Set up Gemini
 if config.GEMINI_API_KEY:
     genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-flash-latest')
+    # Using 1.5-flash for higher rate limits and better speed
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     logger.warning("GEMINI_API_KEY not found. AI rewriting will fail.")
     model = None
@@ -46,30 +47,43 @@ def rewrite_caption(original_text, video_link=None):
         logger.error("AI model not initialized.")
         return original_text
     
-    try:
-        # Check if there are custom prompt variants in the prompts folder
-        prompt = prompt_base
-        if os.path.exists(config.PROMPTS_DIR):
-            variants = [f for f in os.listdir(config.PROMPTS_DIR) if f.endswith('.txt')]
-            if variants:
-                selected_v = random.choice(variants)
-                with open(os.path.join(config.PROMPTS_DIR, selected_v), 'r', encoding='utf-8') as f:
-                    prompt = f.read()
+    import time
+    max_retries = 2
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # Check if there are custom prompt variants in the prompts folder
+            prompt = prompt_base
+            if os.path.exists(config.PROMPTS_DIR):
+                variants = [f for f in os.listdir(config.PROMPTS_DIR) if f.endswith('.txt')]
+                if variants:
+                    selected_v = random.choice(variants)
+                    with open(os.path.join(config.PROMPTS_DIR, selected_v), 'r', encoding='utf-8') as f:
+                        prompt = f.read()
 
-        full_prompt = prompt.format(original_text=original_text)
-        
-        response = model.generate_content(full_prompt)
-        rewritten = response.text.strip()
-        
-        # Clean up any quotes AI might add
-        if rewritten.startswith('"') and rewritten.endswith('"'):
-            rewritten = rewritten[1:-1]
+            full_prompt = prompt.format(original_text=original_text)
             
-        return rewritten
-    except Exception as e:
-        err_msg = str(e)
-        if "429" in err_msg or "quota" in err_msg.lower() or "rate" in err_msg.lower():
-            logger.warning("⚠️ Gemini API Quota/Rate Limit hit. Returning None to block X posting.")
-            return None  # Callers MUST check for None — never post this to X
-        logger.error(f"Error rewriting caption: {e}")
-        return original_text  # Fallback to original text for non-quota errors
+            response = model.generate_content(full_prompt)
+            rewritten = response.text.strip()
+            
+            # Clean up any quotes AI might add
+            if rewritten.startswith('"') and rewritten.endswith('"'):
+                rewritten = rewritten[1:-1]
+                
+            return rewritten
+        except Exception as e:
+            err_msg = str(e)
+            if "429" in err_msg or "quota" in err_msg.lower() or "rate" in err_msg.lower():
+                if attempt < max_retries:
+                    wait_time = 5 * (attempt + 1)
+                    logger.warning(f"⚠️ Gemini Quota hit. Retrying in {wait_time}s... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("❌ Gemini API Quota exhausted after retries. Skipping X post.")
+                    return None  # Callers MUST check for None — never post this to X
+            
+            logger.error(f"Error rewriting caption: {e}")
+            return original_text  # Fallback to original text for non-quota errors
+    
+    return original_text

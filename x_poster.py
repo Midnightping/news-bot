@@ -16,6 +16,10 @@ import config
 
 logger = logging.getLogger(__name__)
 
+# Global lock to ensure only one browser process runs at a time
+# This prevents session conflicts and "Compose box not found" errors
+_browser_lock = asyncio.Lock()
+
 # Track daily post count in memory (resets when bot restarts)
 _daily_post_count = 0
 _last_reset_day = None
@@ -107,146 +111,166 @@ async def post_to_x(text: str, media_path: str | None = None, post_id: str | Non
     success = False
     tweet_url = None
 
-    try:
-        from playwright.async_api import async_playwright
+    async with _browser_lock:
+        logger.info("🔒 Browser lock acquired — starting X post process...")
+        try:
+            from playwright.async_api import async_playwright
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-blink-features=AutomationControlled",
-                ]
-            )
-
-            context = await browser.new_context(
-                storage_state=session_file,
-                viewport={"width": 1280, "height": 900},
-                user_agent=(
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-blink-features=AutomationControlled",
+                    ]
                 )
-            )
 
-            page = await context.new_page()
-
-            # Navigate to X home
-            logger.info("🌐 Opening X.com...")
-            await page.goto("https://x.com/home", wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(3000)
-
-            # Check if we're actually logged in (not redirected to login page)
-            current_url = page.url
-            if "login" in current_url or "i/flow/login" in current_url:
-                logger.error(
-                    "❌ X session has expired! Re-run capture_x_session.py locally "
-                    "and update X_SESSION_COOKIES in Railway."
+                context = await browser.new_context(
+                    storage_state=session_file,
+                    viewport={"width": 1280, "height": 900},
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    )
                 )
-                await browser.close()
-                return False
 
-            logger.info("✅ X session valid — composing tweet...")
+                page = await context.new_page()
 
-            # --- Click the compose box ---
-            # Try the main compose box on home feed
-            compose_selectors = [
-                '[data-testid="tweetTextarea_0"]',
-                '[aria-label="Post text"]',
-                'div[role="textbox"][data-testid="tweetTextarea_0"]',
-            ]
-
-            compose_box = None
-            for selector in compose_selectors:
+                # Navigate directly to the compose page for better reliability
+                logger.info("🌐 Opening X Compose page...")
                 try:
-                    compose_box = await page.wait_for_selector(selector, timeout=8000)
-                    if compose_box:
-                        break
-                except Exception:
-                    continue
-
-            if not compose_box:
-                logger.error("❌ Could not find the tweet compose box on X.")
-                await browser.close()
-                return False
-
-            await compose_box.click()
-            await page.wait_for_timeout(500)
-
-            # Type the tweet text (simulate human typing)
-            await compose_box.type(text, delay=30)
-            await page.wait_for_timeout(1000)
-
-            # --- Upload media if provided ---
-            if media_path and os.path.exists(media_path):
-                logger.info(f"📎 Attaching media: {os.path.basename(media_path)}")
-                try:
-                    # Click the media upload button
-                    media_input = await page.query_selector('input[data-testid="fileInput"]')
-                    if media_input:
-                        await media_input.set_input_files(media_path)
-                        # Wait for upload to complete (look for the media preview)
-                        await page.wait_for_selector(
-                            '[data-testid="attachments"]', timeout=30000
-                        )
-                        logger.info("✅ Media uploaded successfully.")
-                        await page.wait_for_timeout(2000)
-                    else:
-                        logger.warning("⚠️ Media upload input not found — posting text only.")
+                    await page.goto("https://x.com/compose/post", wait_until="networkidle", timeout=60000)
                 except Exception as e:
-                    logger.warning(f"⚠️ Media upload failed ({e}) — posting text only.")
+                    logger.warning(f"⚠️ Page load timeout (continuing anyway): {e}")
 
-            # --- Click the Post button ---
-            post_button_selectors = [
-                '[data-testid="tweetButtonInline"]',
-                '[data-testid="tweetButton"]',
-                'button[data-testid="tweetButtonInline"]',
-            ]
+                await page.wait_for_timeout(5000)
 
-            post_button = None
-            for selector in post_button_selectors:
-                try:
-                    btn = await page.query_selector(selector)
-                    if btn:
-                        is_disabled = await btn.get_attribute("aria-disabled")
-                        if is_disabled != "true":
-                            post_button = btn
+                # Check if we're actually logged in (not redirected to login page)
+                current_url = page.url
+                if "login" in current_url or "i/flow/login" in current_url:
+                    logger.error(
+                        "❌ X session has expired! Re-run capture_x_session.py locally "
+                        "and update X_SESSION_COOKIES in Railway."
+                    )
+                    await browser.close()
+                    return False
+
+                logger.info("✅ X session valid — composing tweet...")
+
+                # --- Squish common popups ---
+                for popup_selector in ['[data-testid="app-dismiss"]', 'div[role="button"]:has-text("Got it")', 'div[role="button"]:has-text("Dismiss")']:
+                    try:
+                        btn = await page.query_selector(popup_selector)
+                        if btn:
+                            await btn.click()
+                            await page.wait_for_timeout(500)
+                    except: pass
+
+                # --- Find the compose box ---
+                compose_selectors = [
+                    '[data-testid="tweetTextarea_0"]',
+                    '[data-testid="tweetTextarea_0RichEditor"]',
+                    '[aria-label="Post text"]',
+                    'div[role="textbox"]',
+                ]
+
+                compose_box = None
+                for selector in compose_selectors:
+                    try:
+                        # Wait for element to be visible and ready
+                        compose_box = await page.wait_for_selector(selector, timeout=10000, state="visible")
+                        if compose_box:
                             break
-                except Exception:
-                    continue
+                    except Exception:
+                        continue
 
-            if not post_button:
-                logger.error("❌ Could not find the Post button.")
-                await browser.close()
-                return False
+                if not compose_box:
+                    logger.error("❌ Could not find the tweet compose box on X.")
+                    # Save a screenshot for debugging in the project root
+                    await page.screenshot(path="x_error_debug.png")
+                    await browser.close()
+                    return False
 
-            await post_button.click()
-            logger.info("📤 Post button clicked — waiting for confirmation...")
-            await page.wait_for_timeout(4000)
+                # Click and ensure focus
+                await compose_box.click()
+                await page.wait_for_timeout(1000)
 
-            # --- Verify the tweet was posted ---
-            # Check that compose box is now empty (tweet was sent)
-            try:
-                compose_after = await page.query_selector('[data-testid="tweetTextarea_0"]')
-                if compose_after:
-                    text_after = await compose_after.text_content()
-                    if not text_after or text_after.strip() == "":
+                # Type the tweet text
+                logger.info("✍️ Typing tweet content...")
+                await page.keyboard.type(text, delay=50)
+                await page.wait_for_timeout(1500)
+
+                # --- Upload media if provided ---
+                if media_path and os.path.exists(media_path):
+                    logger.info(f"📎 Attaching media: {os.path.basename(media_path)}")
+                    try:
+                        # Click the media upload button
+                        media_input = await page.query_selector('input[data-testid="fileInput"]')
+                        if media_input:
+                            await media_input.set_input_files(media_path)
+                            # Wait for upload to complete (look for the media preview)
+                            await page.wait_for_selector(
+                                '[data-testid="attachments"]', timeout=30000
+                            )
+                            logger.info("✅ Media uploaded successfully.")
+                            await page.wait_for_timeout(2000)
+                        else:
+                            logger.warning("⚠️ Media upload input not found — posting text only.")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Media upload failed ({e}) — posting text only.")
+
+                # --- Click the Post button ---
+                post_button_selectors = [
+                    '[data-testid="tweetButtonInline"]',
+                    '[data-testid="tweetButton"]',
+                    'button[data-testid="tweetButtonInline"]',
+                ]
+
+                post_button = None
+                for selector in post_button_selectors:
+                    try:
+                        btn = await page.query_selector(selector)
+                        if btn:
+                            is_disabled = await btn.get_attribute("aria-disabled")
+                            if is_disabled != "true":
+                                post_button = btn
+                                break
+                    except Exception:
+                        continue
+
+                if not post_button:
+                    logger.error("❌ Could not find the Post button.")
+                    await browser.close()
+                    return False
+
+                await post_button.click()
+                logger.info("📤 Post button clicked — waiting for confirmation...")
+                await page.wait_for_timeout(4000)
+
+                # --- Verify the tweet was posted ---
+                # Check that compose box is now empty (tweet was sent)
+                try:
+                    compose_after = await page.query_selector('[data-testid="tweetTextarea_0"]')
+                    if compose_after:
+                        text_after = await compose_after.text_content()
+                        if not text_after or text_after.strip() == "":
+                            success = True
+                            logger.info("✅ Tweet posted successfully!")
+                        else:
+                            logger.warning("⚠️ Compose box still has text — tweet may not have posted.")
+                    else:
+                        # Compose box gone = tweet was sent
                         success = True
                         logger.info("✅ Tweet posted successfully!")
-                    else:
-                        logger.warning("⚠️ Compose box still has text — tweet may not have posted.")
-                else:
-                    # Compose box gone = tweet was sent
+                except Exception:
+                    # If we can't find compose box, assume success
                     success = True
-                    logger.info("✅ Tweet posted successfully!")
-            except Exception:
-                # If we can't find compose box, assume success
-                success = True
-                logger.info("✅ Tweet likely posted (compose box cleared).")
+                    logger.info("✅ Tweet likely posted (compose box cleared).")
 
-            await browser.close()
+                await browser.close()
 
     except Exception as e:
         logger.error(f"❌ Playwright error while posting to X: {e}")
