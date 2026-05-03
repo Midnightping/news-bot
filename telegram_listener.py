@@ -11,7 +11,14 @@ from ai_rewriter import rewrite_caption
 from notifier import send_suggestion
 from bot_instance import instance_id
 from media_handler import cleanup_media
-import x_poster
+try:
+    import x_poster
+    X_POSTER_AVAILABLE = True
+except ImportError:
+    x_poster = None
+    X_POSTER_AVAILABLE = False
+    import logging as _log
+    _log.getLogger(__name__).warning("⚠️ x_poster module not found — X posting disabled")
 
 logger = logging.getLogger(__name__)
 
@@ -166,12 +173,16 @@ async def handle_newsfather_message(event):
         post_id = saved[0]['id'] if saved else None
 
         # 6. Post to X via Playwright
-        logger.info(f"🐦 Posting to X: {rewritten[:60]}...")
-        success = await x_poster.post_to_x(
-            text=rewritten,
-            media_path=media_path,
-            post_id=post_id
-        )
+        if X_POSTER_AVAILABLE:
+            logger.info(f"🐦 Posting to X: {rewritten[:60]}...")
+            success = await x_poster.post_to_x(
+                text=rewritten,
+                media_path=media_path,
+                post_id=post_id
+            )
+        else:
+            logger.warning("⚠️ Skipping X post — x_poster not loaded.")
+            success = False
 
         if success:
             logger.info("✅ @newsfather story posted to X successfully.")
