@@ -102,11 +102,18 @@ async def main():
     loop.run_in_executor(None, start_command_listener)
     
     # Run Telegram listener, RSS poller, and heartbeat task concurrently
-    await asyncio.gather(
-        start_listening(),
-        rss_task(),
-        heartbeat_task()
-    )
+    # Wrapped in a loop to ensure the container stays alive even if a task finishes or crashes
+    while True:
+        try:
+            await asyncio.gather(
+                start_listening(),
+                rss_task(),
+                heartbeat_task()
+            )
+        except Exception as e:
+            logger.error(f"💥 CRITICAL: A core task crashed: {e}")
+            logger.info("♻️ Restarting all tasks in 10 seconds...")
+            await asyncio.sleep(10)
 
 if __name__ == "__main__":
     try:
