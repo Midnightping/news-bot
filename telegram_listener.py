@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 CHANNELS = ["ghonetv", "joynewsontv", "eiichaley"]
 
 # Channels that get auto-posted directly to X (Twitter) via Playwright
-X_POST_CHANNELS = ["newsfather"]
+X_POST_CHANNELS = ["newsfather", "@newsfather"]
 
 # Initialize Telethon Client
 from telethon.sessions import StringSession
@@ -216,6 +216,9 @@ async def start_listening():
             logger.error(f"❌ Telegram connection FAILED: {e}")
             return
 
+        # Wait a moment for connection to stabilize
+        await asyncio.sleep(5)
+        
         # Verify access to all channels
         logger.info("🔍 Verifying channel access...")
         all_channels = CHANNELS + X_POST_CHANNELS
