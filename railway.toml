@@ -3,6 +3,6 @@ builder = "NIXPACKS"
 buildCommand = "pip install --no-cache-dir -r requirements.txt"
 
 [deploy]
-startCommand = "playwright install chromium && python main.py"
-restartPolicyType = "ON_FAILURE"
+startCommand = "npx playwright install --with-deps chromium && python main.py"
+restartPolicyType = "ALWAYS"
 restartPolicyMaxRetries = 5
