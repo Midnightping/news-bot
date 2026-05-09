@@ -39,6 +39,7 @@ POLLING_INTERVAL = int(os.getenv("POLLING_INTERVAL_MINUTES", 15)) * 60
 POSTING_INTERVAL = int(os.getenv("POSTING_INTERVAL_MINUTES", 20)) * 60
 MAX_POSTS_PER_DAY = int(os.getenv("MAX_POSTS_PER_DAY", 50))
 X_POST_TIMEOUT_SECONDS = int(os.getenv("X_POST_TIMEOUT_SECONDS", 90))
+X_THREAD_MAX_POSTS = int(os.getenv("X_THREAD_MAX_POSTS", 12))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
 # Paths

@@ -24,6 +24,7 @@ _browser_lock = asyncio.Lock()
 _daily_post_count = 0
 _last_reset_day = None
 _last_post_time = 0
+MAX_X_POST_CHARS = 280
 
 
 def _check_rate_limits() -> tuple[bool, str]:
@@ -72,7 +73,122 @@ def _load_session_to_tempfile() -> str | None:
         return None
 
 
-async def _run_playwright_post(text: str, media_path: str | None, session_file: str) -> bool:
+def _split_plain_text(text: str, limit: int) -> list[str]:
+    """Splits text into chunks at readable boundaries without exceeding limit."""
+    clean = " ".join(text.split())
+    chunks: list[str] = []
+
+    while clean:
+        if len(clean) <= limit:
+            chunks.append(clean)
+            break
+
+        boundary = -1
+        for marker in [". ", "? ", "! ", "; ", ": ", ", ", " "]:
+            candidate = clean.rfind(marker, 0, limit + 1)
+            if candidate > boundary:
+                boundary = candidate + (1 if marker == " " else 2)
+
+        if boundary < int(limit * 0.55):
+            boundary = limit
+
+        chunks.append(clean[:boundary].strip())
+        clean = clean[boundary:].strip()
+
+    return [chunk for chunk in chunks if chunk]
+
+
+def _split_thread_text(text: str) -> list[str]:
+    """Returns one or more X post bodies, adding counters when a thread is needed."""
+    clean = " ".join(text.split())
+    if len(clean) <= MAX_X_POST_CHARS:
+        return [clean]
+
+    max_posts = max(1, config.X_THREAD_MAX_POSTS)
+    reserve = len(f"\n\n{max_posts}/{max_posts}")
+    body_limit = MAX_X_POST_CHARS - reserve
+    parts = _split_plain_text(clean, body_limit)
+
+    if len(parts) > max_posts:
+        logger.warning(
+            f"Long X text needed {len(parts)} thread posts; limiting to {max_posts}."
+        )
+        parts = parts[:max_posts]
+
+    total = len(parts)
+    if total == 1:
+        return parts
+
+    return [f"{part}\n\n{i}/{total}" for i, part in enumerate(parts, start=1)]
+
+
+async def _find_compose_box(page, index: int):
+    """Finds the compose textbox for the given thread index."""
+    indexed_selectors = [
+        f'[data-testid="tweetTextarea_{index}"]',
+        f'[data-testid="tweetTextarea_{index}RichEditor"]',
+    ]
+
+    if index == 0:
+        indexed_selectors.extend(
+            [
+                '[aria-label="Post text"]',
+                'div[role="textbox"]',
+            ]
+        )
+
+    for selector in indexed_selectors:
+        try:
+            box = await page.wait_for_selector(selector, timeout=10000, state="visible")
+            if box:
+                logger.info(f"Compose box {index + 1} found with selector: {selector}")
+                return box
+        except Exception:
+            continue
+
+    try:
+        boxes = await page.query_selector_all('div[role="textbox"]')
+        if boxes and len(boxes) > index:
+            logger.info(f"Compose box {index + 1} found from textbox list.")
+            return boxes[index]
+        if boxes:
+            logger.info(f"Compose box {index + 1} using last textbox fallback.")
+            return boxes[-1]
+    except Exception:
+        pass
+
+    return None
+
+
+async def _click_add_post(page) -> bool:
+    """Clicks X's add-post control to extend the current compose into a thread."""
+    add_selectors = [
+        '[data-testid="addButton"]',
+        'button[aria-label="Add post"]',
+        'div[aria-label="Add post"]',
+        'button[aria-label="Add another post"]',
+        'div[aria-label="Add another post"]',
+        'button:has-text("Add")',
+        'div[role="button"]:has-text("Add")',
+    ]
+
+    for selector in add_selectors:
+        try:
+            btn = await page.wait_for_selector(selector, timeout=5000, state="visible")
+            if btn and await btn.get_attribute("aria-disabled") != "true":
+                await btn.click(timeout=10000)
+                logger.info(f"Clicked add-post button with selector: {selector}")
+                await page.wait_for_timeout(1000)
+                return True
+        except Exception:
+            continue
+
+    return False
+
+
+async def _run_playwright_post(
+    thread_parts: list[str], media_path: str | None, session_file: str
+) -> bool:
     """Runs one Playwright posting attempt. The caller owns timeout/locking."""
     from playwright.async_api import async_playwright
 
@@ -143,25 +259,7 @@ async def _run_playwright_post(text: str, media_path: str | None, session_file: 
                 except Exception:
                     pass
 
-            compose_selectors = [
-                '[data-testid="tweetTextarea_0"]',
-                '[data-testid="tweetTextarea_0RichEditor"]',
-                '[aria-label="Post text"]',
-                'div[role="textbox"]',
-            ]
-
-            compose_box = None
-            for selector in compose_selectors:
-                try:
-                    compose_box = await page.wait_for_selector(
-                        selector, timeout=10000, state="visible"
-                    )
-                    if compose_box:
-                        logger.info(f"Compose box found with selector: {selector}")
-                        break
-                except Exception:
-                    continue
-
+            compose_box = await _find_compose_box(page, 0)
             if not compose_box:
                 logger.error(f"Could not find the tweet compose box on X. Current URL: {page.url}")
                 await page.screenshot(path="x_error_debug.png", full_page=True)
@@ -170,8 +268,8 @@ async def _run_playwright_post(text: str, media_path: str | None, session_file: 
             await compose_box.click(timeout=10000)
             await page.wait_for_timeout(500)
 
-            logger.info("Typing tweet content...")
-            await page.keyboard.type(text, delay=25)
+            logger.info("Typing X post content...")
+            await page.keyboard.type(thread_parts[0], delay=25)
             await page.wait_for_timeout(1000)
 
             if media_path and os.path.exists(media_path):
@@ -193,7 +291,27 @@ async def _run_playwright_post(text: str, media_path: str | None, session_file: 
                 except Exception as e:
                     logger.warning(f"Media upload failed ({e}); posting text only.")
 
+            for index, part in enumerate(thread_parts[1:], start=1):
+                logger.info(f"Adding thread post {index + 1}/{len(thread_parts)}...")
+                if not await _click_add_post(page):
+                    logger.error("Could not find X add-post button for thread creation.")
+                    await page.screenshot(path="x_error_no_add_post_button.png", full_page=True)
+                    return False
+
+                next_box = await _find_compose_box(page, index)
+                if not next_box:
+                    logger.error(f"Could not find compose box for thread post {index + 1}.")
+                    await page.screenshot(path="x_error_thread_compose_box.png", full_page=True)
+                    return False
+
+                await next_box.click(timeout=10000)
+                await page.wait_for_timeout(300)
+                await page.keyboard.type(part, delay=25)
+                await page.wait_for_timeout(700)
+
             post_button_selectors = [
+                'button:has-text("Post all")',
+                'div[role="button"]:has-text("Post all")',
                 '[data-testid="tweetButtonInline"]',
                 '[data-testid="tweetButton"]',
                 'button[data-testid="tweetButtonInline"]',
@@ -256,7 +374,7 @@ async def post_to_x(text: str, media_path: str | None = None, post_id: str | Non
     Posts a tweet to X using Playwright.
 
     Args:
-        text: The tweet text (will be truncated to 280 chars if needed)
+        text: The X post text. Long text is posted as a thread.
         media_path: Optional local file path to an image or video to attach
         post_id: Optional DB post ID to update status in Supabase
 
@@ -269,9 +387,9 @@ async def post_to_x(text: str, media_path: str | None = None, post_id: str | Non
         logger.warning("Skipping X post - text is empty.")
         return False
 
-    if len(text) > 280:
-        text = text[:277].rsplit(" ", 1)[0] + "..."
-        logger.info("Tweet truncated to 280 chars.")
+    thread_parts = _split_thread_text(text)
+    if len(thread_parts) > 1:
+        logger.info(f"X text split into {len(thread_parts)} thread posts.")
 
     ok, reason = _check_rate_limits()
     if not ok:
@@ -287,13 +405,14 @@ async def post_to_x(text: str, media_path: str | None = None, post_id: str | Non
     async with _browser_lock:
         logger.info("Browser lock acquired - starting X post process...")
         try:
+            timeout_seconds = config.X_POST_TIMEOUT_SECONDS + max(0, len(thread_parts) - 1) * 30
             success = await asyncio.wait_for(
-                _run_playwright_post(text, media_path, session_file),
-                timeout=config.X_POST_TIMEOUT_SECONDS,
+                _run_playwright_post(thread_parts, media_path, session_file),
+                timeout=timeout_seconds,
             )
         except asyncio.TimeoutError:
             logger.error(
-                f"X posting timed out after {config.X_POST_TIMEOUT_SECONDS}s; "
+                f"X posting timed out after {timeout_seconds}s; "
                 "releasing browser lock so later posts can continue."
             )
             success = False
